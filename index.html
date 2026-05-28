@@ -1,356 +1,208 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-  <base target="_top">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
- 
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Betagro Material Scan V2</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    body { background: #f2f4f7; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
-    .app-box { max-width: 440px; margin: auto; background: #fff; min-height: 100vh; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
-    .header { display: flex; align-items: center; gap: 16px; padding-bottom: 12px; border-bottom: 2px solid #e0e0e0; }
-    .logo { height: 55px; }
-    .main-title { font-size: 18px; font-weight: 700; color: #003366; }
-    .sub-title { font-size: 13px; color: #555; }
-    #formulaList li { cursor: pointer; font-size: 15px; }
-    #formulaList li:hover { background-color: #f1f5ff; }
-    .progress-box { background: #f8f9fa; border-radius: 8px; padding: 12px; margin-top: 15px; border: 1px solid #e2e8f0; }
-    .material-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #e2e8f0; }
-    .material-item:last-child { border-bottom: none; }
-    .done-item { background-color: #e8f5e9; font-style: italic; color: #2e7d32; }
-    .text-note { font-size: 11px; color: #ff6f00; display: block; font-weight: 500; }
-    #reader { width: 100%; background: #000; border-radius: 12px; overflow: hidden; position: relative; min-height: 250px; display: none; }
-    
-    /* Lớp hỗ trợ phụ đề tiếng anh và nút bấm chuyên dụng */
-    .eng-sub { display: block; color: #2e7d32; font-style: italic; font-weight: normal; font-size: 13px; margin-top: 2px; }
-    .btn-custom-cam { background-color: #e8f5e9 !important; color: #1b5e20 !important; border: 1px solid #c8e6c9 !important; font-weight: bold; }
-    .btn-custom-cam:disabled { background-color: #f5f5f5 !important; color: #a6acaf !important; border: 1px solid #d5dbdb !important; }
-    
-    /* Hiệu ứng nhấp nháy nhẹ thu hút sự chú ý khi hoàn tất mẻ */
-    .pulse-animation { animation: pulse 2s infinite; }
-    @keyframes pulse {
-      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.4); }
-      70% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(46, 125, 50, 0); }
-      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(46, 125, 50, 0); }
-    }
+    body { background-color: #f4f6f9; font-family: Arial, sans-serif; padding-top: 20px; }
+    .card { border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: none; margin-bottom: 15px; }
+    .en-txt { font-style: italic; color: #6c757d; font-size: 0.9em; display: block; }
+    .badge-status { font-size: 0.95rem; padding: 8px 12px; border-radius: 8px; font-weight: bold; }
+    #reader { width: 100%; max-width: 450px; margin: 0 auto; border-radius: 12px; overflow: hidden; display: none; }
+    .btn-camera { background-color: #e8f5e9; color: #2e7d32; border: 2px dashed #2e7d32; font-weight: bold; width: 100%; padding: 15px; border-radius: 12px; font-size: 1.2rem; }
+    .btn-camera:hover { background-color: #c8e6c9; }
   </style>
 </head>
 <body>
- 
-<div class="app-box">
-  <div class="header">
-    <img src="https://ctcbio.com.vn/wp-content/uploads/2017/06/logo-ctc2-250x250.jpg" class="logo">
-    <div class="title">
-      <div class="main-title">Material Verification System</div>
-      <div class="sub-title">Kiểm tra & Đếm số bao nguyên liệu</div>
-    </div>
-  </div>
- 
-  <div class="mb-3 position-relative mt-3">
-    <label class="form-label fw-bold text-dark mb-0">Công thức đang sản xuất</label>
-    <span class="eng-sub mb-2">Production Formula</span>
-    <input type="text" class="form-control form-control-lg" id="formula" placeholder="🔍 Gõ để tìm công thức..." autocomplete="off">
-    <ul id="formulaList" class="list-group position-absolute w-100 d-none" style="z-index:1000; max-height:200px; overflow-y:auto;"></ul>
-  </div>
- 
-  <div id="progressContainer" class="progress-box d-none">
-    <div class="fw-bold text-dark">📋 Trình tự nạp nguyên liệu:</div>
-    <span class="eng-sub mb-2 border-bottom pb-1">Material Charging Progress:</span>
-    <div id="bomList"></div>
-    
-    <div id="completionBox" class="mt-3 d-none">
-      <button class="btn btn-success btn-lg w-100 py-3 fw-bold shadow pulse-animation" onclick="finishAndResetBatch()">
-        ✅ ĐÃ HOÀN TẤT MẺ - CHUYỂN MẺ MỚI<br>
-        <span style="font-size: 13px; font-style: italic; font-weight: normal;">Batch Completed - Switch to Next Batch</span>
-      </button>
-    </div>
-  </div>
- 
-  <div class="d-grid gap-2 my-3">
-    <button class="btn btn-custom-cam btn-lg shadow-sm" id="btnStartCam" onclick="startCameraDirectly()" disabled>
-      📷 Bật Camera Quét QR<br><span style="font-size: 14px; font-style: italic; font-weight: normal;">Turn on QR Camera</span>
-    </button>
-    <button class="btn btn-danger btn-lg d-none shadow-sm" id="btnStopCam" onclick="stopCameraDirectly()">
-      🛑 Tắt Camera<br><span style="font-size: 14px; font-style: italic; font-weight: normal;">Turn off QR Camera</span>
-    </button>
-  </div>
- 
-  <div id="reader" class="mb-3 shadow-sm"></div>
- 
-  <div id="loading" class="text-center my-3 d-none">
-    <div class="spinner-border text-primary"></div>
-    <div class="mt-2 text-muted">Đang xử lý dữ liệu...</div>
-  </div>
-</div>
- 
-<script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
- 
-<script>
-  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzCuxi-qAAuNM7TEYkPVRK-hip6UBP94iNFhHAcho6zrBrLWRG6OTS-p18nv_L3De2J/exec"; 
 
-  let html5Qrcode;
-  let allFormulas = [];
-  let isProcessingScan = false;
- 
-  const input = document.getElementById("formula");
-  const list = document.getElementById("formulaList");
- 
-  document.addEventListener("DOMContentLoaded", () => {
-    html5Qrcode = new Html5Qrcode("reader");
-    showLoading();
-     
+<div class="container pb-5">
+  <div class="card p-3">
+    <label class="form-label fw-bold text-success mb-1">Công thức đang sản xuất / <span class="en-txt">Production Formula</span></label>
+    <select id="formulaSelect" class="form-select form-select-lg fw-bold" onchange="loadFormulaDetails()">
+      <option value="">-- Đang tải danh sách công thức... --</option>
+    </select>
+  </div>
+
+  <div class="card p-3">
+    <h5 class="fw-bold mb-3">📋 Trình tự nạp nguyên liệu / <span class="en-txt">Material Charging Progress:</span></h5>
+    <div id="materialList" class="text-center py-4 text-muted">Vui lòng chọn công thức để xem tiến độ.</div>
+  </div>
+
+  <div class="my-3">
+    <button class="btn btn-camera" id="toggleCamBtn" onclick="toggleCamera()">
+      📷 Bật Camera Quét QR <br><span class="en-txt" style="color: #2e7d32;">Turn on QR Camera</span>
+    </button>
+  </div>
+
+  <div id="reader"></div>
+</div>
+
+<script>
+  // 🔴 THAY ĐƯỜNG LINK WEB APP CỦA BẠN VÀO ĐÂY
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyzye4RZHKR35_t1xyqJAO_KpOC562MT7xHk_VeL1WNaXMyvvTgKAnfYqSWOUgBH5YY/exec"; 
+
+  let html5QrCode = null;
+
+  // Mới vào trang: Tự động load danh sách công thức
+  window.onload = function() {
     fetch(WEB_APP_URL, {
       method: "POST",
       body: JSON.stringify({ action: "getAllowedFormulas" })
     })
     .then(res => res.json())
     .then(res => {
-      hideLoading();
       if (res.status === "SUCCESS") {
-        allFormulas = res.data;
-      } else {
-        swal("Lỗi dữ liệu", "Không thể lấy danh sách công thức", "error");
+        let select = document.getElementById("formulaSelect");
+        select.innerHTML = '<option value="">-- Chọn Công Thức / Select Formula --</option>';
+        res.data.forEach(f => {
+          select.innerHTML += `<option value="${f}">${f}</option>`;
+        });
       }
-    })
-    .catch(err => {
-      hideLoading();
-      swal("Lỗi Hệ Thống", "Không thể kết nối đến máy chủ Google Sheets", "error");
-    });
-  });
- 
-  input.addEventListener("input", () => {
-    const keyword = input.value.toUpperCase().trim();
-    list.innerHTML = "";
-    if (!keyword || allFormulas.length === 0) { list.classList.add("d-none"); return; }
+    }).catch(err => alert("Không thể kết nối Server: " + err));
+  };
+
+  // Hàm load chi tiết tiến độ nạp liệu
+  function loadFormulaDetails() {
+    let formula = document.getElementById("formulaSelect").value;
+    let listDiv = document.getElementById("materialList");
+    if (!formula) {
+      listDiv.innerHTML = "Vui lòng chọn công thức để xem tiến độ.";
+      return;
+    }
     
-    const matched = allFormulas.filter(f => f.toUpperCase().includes(keyword));
-    if (matched.length === 0) { list.classList.add("d-none"); return; }
- 
-    matched.forEach(f => {
-      const li = document.createElement("li");
-      li.className = "list-group-item";
-      li.textContent = f;
-      li.onclick = () => {
-        input.value = f;
-        list.classList.add("d-none");
-        loadFormulaProgress(f);
-      };
-      list.appendChild(li);
-    });
-    list.classList.remove("d-none");
-  });
- 
-  function loadFormulaProgress(formulaName) {
-    showLoading();
-     
+    listDiv.innerHTML = `<div class="spinner-border text-success" role="status"></div><p class="mt-2">Đang tải tiến độ...</p>`;
+
     fetch(WEB_APP_URL, {
       method: "POST",
-      body: JSON.stringify({ action: "getFormulaDetails", formula: formulaName })
+      body: JSON.stringify({ action: "getFormulaDetails", formula: formula })
     })
     .then(res => res.json())
     .then(res => {
-      hideLoading();
-      if (res.status !== "SUCCESS") {
-        swal("Lỗi", "Không thể tải tiến độ", "error");
+      listDiv.innerHTML = "";
+      if (res.length === 0) {
+        listDiv.innerHTML = "Không có dữ liệu nguyên liệu cho công thức này.";
         return;
       }
-       
-      const bomProgress = res.data;
-      const container = document.getElementById("progressContainer");
-      const bomList = document.getElementById("bomList");
-      const btnStartCam = document.getElementById("btnStartCam");
-      const completionBox = document.getElementById("completionBox");
-      
-      bomList.innerHTML = "";
-      if(bomProgress && bomProgress.length > 0) {
-        container.classList.remove("d-none");
-        btnStartCam.disabled = false;
-        
-        let totalItems = bomProgress.length;
-        let completedItemsCount = 0;
-        
-        bomProgress.forEach(item => {
-          const div = document.createElement("div");
-          const isDone = item.scannedBags >= item.reqBags;
-          if (isDone) completedItemsCount++; // Đếm số dòng đã quét đủ
-          
-          div.className = `material-item ${isDone ? 'done-item px-2 rounded' : ''}`;
-          
-          const fullBagsCount = Math.floor(item.reqWeight / item.packSize);
-          const remainder = parseFloat((item.reqWeight % item.packSize).toFixed(2));
-          let noteHtml = ``;
-          
-          if (remainder > 0) {
-            noteHtml = `(${fullBagsCount} bao nguyên + 1 bao lẻ ${remainder}kg)<br><span style="color: #2e7d32; font-style: italic; font-weight: normal; display: block; margin-top: 1px;">(${fullBagsCount} full bag(s) + 1 partial bag ${remainder}kg)</span>`;
-          } else {
-            noteHtml = `(${item.packSize}kg/bao)`;
-          }
 
-          div.innerHTML = `
-            <div style="max-width: 70%;">
-              <strong class="d-block">${item.name}</strong>
-              <small class="text-muted d-block">Mã/Code: ${item.code} | Tổng/Total: ${item.reqWeight}kg</small>
-              <span class="text-note">${noteHtml}</span>
+      res.forEach(item => {
+        // 🟢 SỬA LOGIC CHÍNH XÁC: Chỉ hiển thị HOÀN TẤT khi đã quét đủ và số bao yêu cầu phải lớn hơn 0
+        let isDone = (item.scannedBags >= item.reqBags) && (item.reqBags > 0);
+        
+        let badgeClass = isDone ? "bg-success text-white" : "bg-warning text-dark";
+        let badgeText = isDone ? "Hoàn tất / Done" : `${item.scannedBags}/${item.reqBags} bao/bags`;
+
+        listDiv.innerHTML += `
+          <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="fw-bold mb-0 text-start">${item.name}</h6>
+              <small class="text-muted d-block text-start">Mã/Code: ${item.code} | Tổng/Total: ${item.reqWeight}kg</small>
+              <small class="text-secondary d-block text-start">(${item.packSize}kg/bao)</small>
             </div>
             <div>
-              <span class="badge ${isDone ? 'bg-success' : 'bg-warning text-dark'} fs-6">
-                ${item.scannedBags}/${item.reqBags} bao
-              </span>
+              <span class="badge badge-status ${badgeClass}">${badgeText}</span>
             </div>
-          `;
-          bomList.appendChild(div);
-        });
-        
-        // KIỂM TRA ĐIỀU KIỆN XUẤT HIỆN NÚT HOÀN TẤT MẺ MỚI
-        if (completedItemsCount === totalItems && totalItems > 0) {
-          completionBox.classList.remove("d-none");
-        } else {
-          completionBox.classList.add("d-none");
-        }
-        
-      } else {
-        container.classList.add("d-none");
-        completionBox.classList.add("d-none");
-        btnStartCam.disabled = true;
-        swal("Thông báo", "Công thức chưa có nguyên liệu Hoạt động!", "info");
-      }
-    })
-    .catch(err => {
-      hideLoading(); 
-      swal("Lỗi", "Mất kết nối khi tải dữ liệu công thức", "error"); 
+          </div>
+        `;
+      });
     });
   }
- 
-  // HÀM XỬ LÝ SỰ KIỆN CLICK NÚT CHUYỂN MẺ MỚI
-  function finishAndResetBatch() {
-    swal({
-      title: "Xác nhận hoàn tất mẻ? / Confirm Next Batch",
-      text: "Hệ thống sẽ làm mới biểu mẫu để chuẩn bị cho mẻ sản xuất tiếp theo.",
-      icon: "info",
-      buttons: ["Quay lại / Cancel", "Xác nhận làm mới / Confirm"],
-    }).then((willReset) => {
-      if (willReset) {
-        stopCameraDirectly(); // Tắt luồng camera đang chạy (nếu có)
-        
-        // Xóa sạch trạng thái cũ để nhập mẻ mới
-        input.value = "";
-        document.getElementById("progressContainer").classList.add("d-none");
-        document.getElementById("completionBox").classList.add("d-none");
-        document.getElementById("btnStartCam").disabled = true;
-        
-        swal("Đã chuyển mẻ thành công! ✅", "Hệ thống đã sẵn sàng, vui lòng nhập mã công thức mới.", "success");
-      }
-    });
-  }
- 
-  function startCameraDirectly() {
-    document.getElementById("reader").style.display = "block";
-    document.getElementById("btnStartCam").classList.add("d-none");
-    document.getElementById("btnStopCam").classList.remove("d-none");
- 
-    Html5Qrcode.getCameras().then(devices => {
-      if (devices && devices.length > 0) {
-        let cameraId = devices[0].id;
-        for (let i = 0; i < devices.length; i++) {
-          let label = devices[i].label.toLowerCase();
-          if (label.includes("back") || label.includes("sau") || label.includes("environment")) {
-            cameraId = devices[i].id;
-            break;
-          }
-        }
-         
-        html5Qrcode.start(
-          cameraId,
-          { fps: 10, qrbox: { width: 230, height: 230 } },
-          onScanSuccess,
-          onScanFailure
-        ).catch(err => {
-          swal("Lỗi khởi động", "Không thể kích hoạt luồng camera. Vui lòng kiểm tra lại quyền thiết bị!", "error");
-          stopCameraDirectly();
-        });
-      } else {
-        swal("Lỗi thiết bị", "Không tìm thấy camera nào", "error");
-        stopCameraDirectly();
-      }
-    }).catch(err => {
-      swal("Yêu cầu quyền", "Vui lòng cấp quyền truy cập Camera cho trang web này!", "error");
-      stopCameraDirectly();
-    });
-  }
- 
-  function stopCameraDirectly() {
-    if (html5Qrcode) {
-      html5Qrcode.stop().then(() => {
-        document.getElementById("reader").style.display = "none";
-        document.getElementById("btnStartCam").classList.remove("d-none");
-        document.getElementById("btnStopCam").classList.add("d-none");
-        isProcessingScan = false;
-      }).catch(err => {
-        document.getElementById("reader").style.display = "none";
-        document.getElementById("btnStartCam").classList.remove("d-none");
-        document.getElementById("btnStopCam").classList.add("d-none");
-        isProcessingScan = false;
+
+  // Hàm kích hoạt / Tắt Camera quét QR
+  function toggleCamera() {
+    let formula = document.getElementById("formulaSelect").value;
+    if (!formula) {
+      Swal.fire("Nhắc nhở", "Vui lòng chọn Công thức trước khi bật Camera!", "warning");
+      return;
+    }
+
+    let readerDiv = document.getElementById("reader");
+    let btn = document.getElementById("toggleCamBtn");
+
+    if (readerDiv.style.display === "block") {
+      stopCamera();
+    } else {
+      readerDiv.style.display = "block";
+      btn.innerHTML = `🛑 Tắt Camera <br><span class="en-txt" style="color:red;">Turn off Camera</span>`;
+      btn.style.backgroundColor = "#ffebee";
+      btn.style.color = "red";
+      btn.style.borderColor = "red";
+
+      html5QrCode = new Html5Qrcode("reader");
+      html5QrCode.start(
+        { facingMode: "environment" }, 
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          stopCamera(); // Quét trúng thì tắt cam tạm thời để xử lý
+          handleScannedQR(decodedText);
+        },
+        (errorMessage) => { /* Bỏ qua log lỗi quét trượt */ }
+      ).catch(err => {
+        Swal.fire("Lỗi Camera", "Không thể truy cập camera. Vui lòng cấp quyền hoặc dùng link HTTPS GitHub Pages!", "error");
+        stopCamera();
       });
     }
   }
- 
-  function onScanSuccess(decodedText) {
-    if (isProcessingScan) return; 
-    isProcessingScan = true; 
- 
-    const formula = input.value.trim();
-    showLoading();
- 
+
+  function stopCamera() {
+    let readerDiv = document.getElementById("reader");
+    let btn = document.getElementById("toggleCamBtn");
+    readerDiv.style.display = "none";
+    btn.innerHTML = `📷 Bật Camera Quét QR <br><span class="en-txt" style="color: #2e7d32;">Turn on QR Camera</span>`;
+    btn.style.backgroundColor = "#e8f5e9";
+    btn.style.color = "#2e7d32";
+    btn.style.borderColor = "#2e7d32";
+    if (html5QrCode) {
+      html5QrCode.stop().then(() => html5QrCode.clear());
+    }
+  }
+
+  // Xử lý gửi mã QR lên Server
+  function handleScannedQR(qrCode) {
+    let formula = document.getElementById("formulaSelect").value;
+    
+    Swal.fire({
+      title: 'Đang kiểm tra...',
+      text: 'Vui lòng chờ phản hồi từ hệ thống',
+      allowOutsideClick: false,
+      didOpen: () => { Swal.showLoading(); }
+    });
+
     fetch(WEB_APP_URL, {
       method: "POST",
-      body: JSON.stringify({ action: "scanMaterial", materialQR: decodedText, formula: formula })
+      body: JSON.stringify({ action: "scanMaterial", materialQR: qrCode, formula: formula })
     })
     .then(res => res.json())
     .then(res => {
-      hideLoading();
+      Swal.close();
       if (res.status === "GREAT") {
-        if (res.isPartialBag) {
-          swal({
-            title: `⚠️ CHÚ Ý: BAO LẺ [${res.currentBag}/${res.totalBags}]`,
-            text: `Nguyên liệu: ${res.materialName}\n👉 VUI LÒNG CÂN LẺ ĐÚNG: ${res.partialWeight} KG\n(Không đổ hết cả bao!)\n\n---------------------------------------\n\n⚠️ ATTENTION: PARTIAL BAG [${res.currentBag}/${res.totalBags}]\nMaterial: ${res.materialName}\n👉 PLEASE WEIGH EXACTLY: ${res.partialWeight} KG\n(Do not pour the entire bag!)`,
-            icon: "warning",
-            closeOnClickOutside: false,
-            button: "Đã cân đúng lẻ / Understood"
-          }).then(() => {
-            loadFormulaProgress(formula);
-            isProcessingScan = false; 
-          });
-        } else {
-          swal({
-            title: `THÀNH CÔNG ✅ [${res.currentBag}/${res.totalBags}]`,
-            text: `Xác nhận: ${res.materialName}\nHãy nạp 1 bao NGUYÊN (${res.packSize} kg).`,
-            icon: "success",
-            timer: 2500,
-            buttons: false
-          }).then(() => {
-            loadFormulaProgress(formula);
-            isProcessingScan = false; 
-          });
-        }
+        Swal.fire({
+          icon: 'success',
+          title: 'QUÉT THÀNH CÔNG!',
+          html: `Nguyên liệu: <b>${res.materialName}</b><br>Số thứ tự: <b style="color:green; font-size:1.2em;">[${res.currentBag}/${res.totalBags}]</b>`,
+          timer: 3500
+        }).then(() => {
+          loadFormulaDetails(); // Cập nhật lại giao diện tiến độ ngay lập tức
+        });
       } else {
-        swal("THẤT BẠI ❌", res.message.replace(/<br>.*$/g, ''), "error").then(() => { 
-          isProcessingScan = false; 
+        Swal.fire({
+          icon: 'error',
+          title: 'THẤT BẠI!',
+          html: res.message
+        }).then(() => {
+          loadFormulaDetails();
         });
       }
     })
     .catch(err => {
-      hideLoading();
-      swal("Lỗi mạng", "Mất liên lạc với máy chủ Google Sheets", "error").then(() => { 
-        isProcessingScan = false; 
-      });
+      Swal.close();
+      Swal.fire("Lỗi mạng", "Kết nối máy chủ thất bại!", "error");
     });
   }
- 
-  function onScanFailure(error) {}
-  function showLoading() { document.getElementById("loading").classList.remove("d-none"); }
-  function hideLoading() { document.getElementById("loading").classList.add("d-none"); }
-  document.addEventListener("click", e => { if (!e.target.closest(".position-relative")) list.classList.add("d-none"); });
 </script>
+
 </body>
 </html>
