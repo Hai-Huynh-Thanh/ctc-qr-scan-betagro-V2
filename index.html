@@ -26,7 +26,9 @@
     .btn-custom-cam { background-color: #e8f5e9 !important; color: #1b5e20 !important; border: 1px solid #c8e6c9 !important; font-weight: bold; }
     .btn-custom-cam:disabled { background-color: #f5f5f5 !important; color: #a6acaf !important; border: 1px solid #d5dbdb !important; }
     
-    /* Animation nhẹ cho nút hoàn mẻ để gây chú ý tích cực */
+    /* Vùng hiển thị số mẻ (Batch ID) thiết kế chuyên nghiệp */
+    .batch-container { background: #e3f2fd; border: 1px solid #90caf9; border-radius: 6px; padding: 8px 12px; margin-top: 10px; }
+    
     .btn-batch-done { animation: pulse 2s infinite; font-weight: bold; }
     @keyframes pulse {
       0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.4); }
@@ -51,6 +53,16 @@
     <span class="eng-sub mb-2">Production Formula</span>
     <input type="text" class="form-control form-control-lg" id="formula" placeholder="🔍 Gõ để tìm công thức..." autocomplete="off">
     <ul id="formulaList" class="list-group position-absolute w-100 d-none" style="z-index:1000; max-height:200px; overflow-y:auto;"></ul>
+  </div>
+
+  <div id="batchInfoBox" class="batch-container d-none">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <span class="fw-bold text-dark d-block" style="font-size: 14px;">Mã số mẻ hiện tại:</span>
+        <span class="text-muted italic" style="font-size: 11px; font-style: italic;">Current Batch ID / Lot No.</span>
+      </div>
+      <div id="txtBatchId" class="badge bg-primary fs-5 font-monospace">000B40000</div>
+    </div>
   </div>
  
   <div id="progressContainer" class="progress-box d-none">
@@ -86,11 +98,12 @@
 <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
  
 <script>
-  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzjHUTPY5pPGfbmZtanDXBMqlsew6HDrFRo11xtsiCDuRxkN9NrDg6sgbPHLn8USwIX/exec"; 
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyz9Zu_TzMZaihFPO_J3o6yzhoNqyBrzhkkDP9QWPZB2WrgFQQjVaLNkfdD9M0gqYI2/exec"; 
 
   let html5Qrcode;
   let allFormulas = [];
   let isProcessingScan = false;
+  let currentBatchId = ""; // Lưu trữ Batch ID hiện tại trên giao diện
  
   const input = document.getElementById("formula");
   const list = document.getElementById("formulaList");
@@ -133,19 +146,48 @@
       li.onclick = () => {
         input.value = f;
         list.classList.add("d-none");
-        loadFormulaProgress(f);
+        
+        // Trước khi tải tiến độ, tự động yêu cầu sinh Batch ID mới từ Server
+        fetchNewBatchIdAndLoadProgress(f);
       };
       list.appendChild(li);
     });
     list.classList.remove("d-none");
   });
+
+  // Hàm trung gian để lấy mã Batch ID mới trước rồi mới render danh sách BOM
+  function fetchNewBatchIdAndLoadProgress(formulaName) {
+    showLoading();
+    fetch(WEB_APP_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "getNextBatchId" })
+    })
+    .then(res => res.json())
+    .then(res => {
+      if(res.status === "SUCCESS") {
+         currentBatchId = res.batchId;
+         document.getElementById("txtBatchId").textContent = currentBatchId;
+         document.getElementById("batchInfoBox").classList.remove("d-none");
+         
+         // Sau khi có Batch ID chính xác, tiến hành tải danh sách BOM
+         loadFormulaProgress(formulaName);
+      } else {
+         hideLoading();
+         swal("Lỗi", "Không lấy được Mã Mẻ từ hệ thống", "error");
+      }
+    })
+    .catch(err => {
+       hideLoading();
+       swal("Lỗi", "Mất kết nối khi xin cấp mã mẻ", "error");
+    });
+  }
  
   function loadFormulaProgress(formulaName) {
     showLoading();
       
     fetch(WEB_APP_URL, {
       method: "POST",
-      body: JSON.stringify({ action: "getFormulaDetails", formula: formulaName })
+      body: JSON.stringify({ action: "getFormulaDetails", formula: formulaName, batchId: currentBatchId })
     })
     .then(res => res.json())
     .then(res => {
@@ -202,10 +244,8 @@
           bomList.appendChild(div);
         });
 
-        // Kiểm tra xem đã hoàn thành toàn bộ tất cả nguyên liệu trong mẻ chưa
         if (completedItems === totalItems && totalItems > 0) {
           batchCompleteZone.classList.remove("d-none");
-          // Tự động tắt camera nếu đang bật để công nhân tập trung bấm nút hoàn tất
           if (document.getElementById("btnStopCam").classList.contains("d-none") === false) {
              stopCameraDirectly();
           }
@@ -226,7 +266,6 @@
     });
   }
  
-  // Hàm xử lý chuyển sang mẻ mới (Reset ứng dụng về trạng thái ban đầu)
   function goToNewBatch() {
     swal({
       title: "Xác nhận chuyển mẻ?",
@@ -236,8 +275,10 @@
     }).then((willClear) => {
       if (willClear) {
         input.value = "";
+        currentBatchId = ""; // Xóa mã mẻ cũ trên RAM
         document.getElementById("progressContainer").classList.add("d-none");
         document.getElementById("batchCompleteZone").classList.add("d-none");
+        document.getElementById("batchInfoBox").classList.add("d-none"); // Ấn khung mã mẻ
         document.getElementById("bomList").innerHTML = "";
         document.getElementById("btnStartCam").disabled = true;
         stopCameraDirectly();
@@ -306,7 +347,7 @@
  
     fetch(WEB_APP_URL, {
       method: "POST",
-      body: JSON.stringify({ action: "scanMaterial", materialQR: decodedText, formula: formula })
+      body: JSON.stringify({ action: "scanMaterial", materialQR: decodedText, formula: formula, batchId: currentBatchId })
     })
     .then(res => res.json())
     .then(res => {
